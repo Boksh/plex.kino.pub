@@ -10,6 +10,8 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
+VERSION = "1.0.7"
+VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
 ART                 = 'art-default.jpg'
@@ -158,34 +160,48 @@ def MainMenu():
     if not result == True:
         return result
 
+    objects = [
+        PrefsObject(title=u'Настройки', thumb=R(PREFS)),
+        InputDirectoryObject(
+            key     = Callback(Search, qp={}),
+            title   = unicode('Поиск'),
+            prompt  = unicode('Поиск')
+        ),
+        DirectoryObject(
+            key = Callback(Watching, title='Новые эпизоды', qp={}),
+            title = unicode('Новые эпизоды (%s)' % get_unwatched_count())
+        ),
+        DirectoryObject(
+            key = Callback(Collections, title='Подборки', qp={}),
+            title = unicode('Подборки')
+        ),
+        DirectoryObject(
+            key = Callback(Items, title='Последние', qp={}),
+            title = unicode('Последние'),
+            summary = unicode('Все фильмы и сериалы отсортированные по дате добавления/обновления.')
+        ),
+        DirectoryObject(
+            key = Callback(Items, title='Популярные', qp={'sort':'-rating'}),
+            title = unicode('Популярные'),
+            summary = unicode('Все фильмы и сериалы отсортированные по рейтингу.')
+        ),
+        DirectoryObject(
+            key = Callback(Bookmarks, title='Закладки', qp={}),
+            title = unicode('Закладки'),
+        ),
+    ]
+
+    version = check_version()
+    if version:
+        objects.insert(0, DirectoryObject(
+            key = None,
+            title = unicode(version),
+            summary = unicode("Скачайте обновление на странице http://kino.pub/plugins/plex")
+        ))
+
     oc = ObjectContainer(
         view_group = 'InfoList',
-        objects = [
-            PrefsObject(title=u'Настройки', thumb=R(PREFS)),
-            InputDirectoryObject(
-                key     = Callback(Search, qp={}),
-                title   = unicode('Поиск'),
-                prompt  = unicode('Поиск')
-            ),
-            DirectoryObject(
-                key = Callback(Items, title='Последние', qp={}),
-                title = unicode('Последние'),
-                summary = unicode('Все фильмы и сериалы отсортированные по дате добавления/обновления.')
-            ),
-            DirectoryObject(
-                key = Callback(Items, title='Популярные', qp={'sort':'-rating'}),
-                title = unicode('Популярные'),
-                summary = unicode('Все фильмы и сериалы отсортированные по рейтингу.')
-            ),
-            DirectoryObject(
-                key = Callback(Bookmarks, title='Закладки', qp={}),
-                title = unicode('Закладки'),
-            ),
-            DirectoryObject(
-                key = Callback(Watching, title='Новые эпизоды', qp={}),
-                title = unicode('Новые эпизоды (%s)' % get_unwatched_count())
-            )
-        ]
+        objects = objects,
     )
 
     response = kpubapi.api_request('types')
@@ -301,14 +317,26 @@ def View(title, qp=dict):
         item = response['item']
         # prepare serials
         if item['type'] in ['serial', 'docuserial']:
+            watch_info = kpubapi.api_request("watching", {'id': qp['id']}, cacheTime=0)['item']
             if 'season' in qp:
                 for season in item['seasons']:
                     if int(season['number']) == int(qp['season']):
+                        watch_season = watch_info['seasons'][int(season['number'])-1]
                         for episode_number, episode in enumerate(season['episodes']):
+                            watch_episode = watch_season['episodes'][episode_number]
                             episode_number += 1
                             # create playable item
                             episode_title = "%s" % episode['title'] if len(episode['title']) > 1 else "Эпизод %s" % episode_number
                             episode_title = "%02d. %s"  % (episode_number, episode_title)
+                            watch_title = ""
+                            if watch_episode['status'] == 1:
+                                watch_title = "Просмотрен"
+                            elif watch_episode['status'] == 0:
+                                watch_title = "В процессе"
+                            else:
+                                watch_title = "Не просмотрен"
+
+                            episode_title = "%s     [ %s ]" % (episode_title, watch_title)
                             li = EpisodeObject(
                                 url = "%s/%s?access_token=%s#season=%s&episode=%s" % (ITEM_URL, item['id'], settings.get('access_token'), season['number'], episode_number),
                                 title = unicode(episode_title),
@@ -321,7 +349,16 @@ def View(title, qp=dict):
                         break
             else:
                 for season in item['seasons']:
+                    watch_season = watch_info['seasons'][int(season['number'])-1]
+                    watch_title = ""
+                    if watch_season['status'] == 1:
+                        watch_title = "Просмотрен"
+                    elif watch_season['status'] == 0:
+                        watch_title = "В процессе"
+                    else:
+                        watch_title = "Не просмотрен"
                     season_title = season['title'] if len(season['title']) > 2 else "Сезон %s" % int(season['number'])
+                    season_title = "%s     [ %s ]" % (season_title, watch_title)
                     test_url = item['posters']['medium']
                     li = DirectoryObject(
                         key = Callback(View, title=season_title, qp={'id': item['id'], 'season': season['number']}),
@@ -438,39 +475,66 @@ def Watching(title, qp=dict):
 
     oc = ObjectContainer(title2=unicode(title), view_group='InfoList')
     if 'new' not in qp:
-        response = kpubapi.api_request('watching/serials',params={'subscribed': 1})
+        response = kpubapi.api_request('watching/serials', params={'subscribed': 1}, cacheTime=60)
         if response['status'] == 200:
             for item in response['items']:
                 li = DirectoryObject(
-                    key = Callback(Watching, title=item['title'], qp={'id': item['id'], 'new': item['new']}),
+                    #key = Callback(Watching, title=item['title'], qp={'id': item['id'], 'new': item['new']}),
+                    key = Callback(View, title=item['title'], qp={'id': item['id']}),
                     title = item['title'] + ' (%s)' % item['new'],
                     thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
                 )
                 oc.add(li)
-            oc.objects.sort(key = lambda obj: obj.title)
-    else:
-            response = kpubapi.api_request('watching',params={'id': qp['id']})
-            if response['status'] == 200:
-                item = response['item']
-                for season in item['seasons']:
-                    if int(season['status']) != STATUS_WATCHED:
-                        for episode in season['episodes']:
-                            if int(episode['status']) != STATUS_WATCHED:
-                                episode_title = "%s" % episode['title'] if len(episode['title']) > 1 else "Эпизод %s" % episode['number']
-                                episode_title = "S%02dE%02d. %s"  % (season['number'], episode['number'], episode_title)
-                                li = EpisodeObject(
-                                    url = "%s/%s?access_token=%s#season=%s&episode=%s" % (ITEM_URL, item['id'], settings.get('access_token'), season['number'], episode['number']),
-                                    title = unicode(episode_title),
-                                    index = episode['number'],
-                                    rating_key = episode['id'],
-                                    duration = int(episode['duration'])*1000
-                                    #thumb = Resource.ContentsOfURLWithFallback(episode['thumbnail'], fallback=R(ICON))
-                                )
-                                oc.add(li)
-                oc.objects.sort(key = lambda obj: obj.title)
+            #oc.objects.sort(key = lambda obj: obj.title)
     return oc
 
+@route(PREFIX + '/Collections', qp=dict)
+def Collections(title, qp=dict):
+    result = authenticate()
+    if not result == True:
+        return result
 
+    oc = ObjectContainer(title2=unicode(title), view_group='InfoList', )
+    if 'id' not in qp:
+        objects = [            
+            DirectoryObject(
+                key = Callback(Collections, title='Последние', qp=merge_dicts(qp, {'sort': '-created'})),
+                title = unicode('Последние')
+            ),
+            DirectoryObject(
+                key = Callback(Collections, title='Просматриваемые', qp=merge_dicts(qp, {'sort': '-watchers'})),
+                title = unicode('Просматриваемые')
+            ),
+            DirectoryObject(
+                key = Callback(Collections, title='Популярные', qp=merge_dicts(qp, {'sort': '-views'})),
+                title = unicode('Популярные')
+            ),
+        ]
+        oc.objects = objects
+        response = kpubapi.api_request('collections', qp)
+        if response['status'] == 200:
+            for item in response['items']:
+                li = DirectoryObject(
+                    #key = Callback(Watching, title=item['title'], qp={'id': item['id'], 'new': item['new']}),
+                    key = Callback(Collections, title=item['title'], qp={'id': item['id']}),
+                    title = item['title'],
+                    thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
+                )
+                oc.add(li)
+            Log.Exception("Pag: %s " % qp)
+            show_pagination(oc, response['pagination'], qp, title=title, callback=Collections)
+    else:
+        response = kpubapi.api_request('collections/view', qp)
+        if response['status'] == 200:
+            for item in response['items']:
+                li = DirectoryObject(
+                    #key = Callback(Watching, title=item['title'], qp={'id': item['id'], 'new': item['new']}),
+                    key = Callback(View, title=item['title'], qp={'id': item['id']}),
+                    title = item['title'],
+                    thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
+                )
+                oc.add(li)
+    return oc
 
 
 ####################
@@ -480,13 +544,19 @@ def merge_dicts(*args):
         result.update(d)
     return result
 
+def check_version():
+    version = HTTP.Request(VERSION_CHECK, cacheTime=3600)
+    if VERSION.strip() != str(version).strip():
+        return "Доступна новая версия! %s => %s" % (VERSION, version)
+    return ""
+
 def get_unwatched_count():
     result = authenticate()
     if not result == True:
         return result
 
     count = 0
-    response_serials = kpubapi.api_request('watching/serials',params={'subscribed': 1})
+    response_serials = kpubapi.api_request('watching/serials',params={'subscribed': 1}, cacheTime=60)
     if response_serials['status'] == 200:
         for serial in response_serials['items']:
             count += serial['new']

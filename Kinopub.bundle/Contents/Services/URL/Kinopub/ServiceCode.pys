@@ -77,7 +77,7 @@ def MediaObjectsForURL(url):
                 # monkey patching
                 quality = normalize(i['quality'])
                 mos.append(MediaObject(
-                    parts = [PartObject(key=Callback(PlayVideo, url=i['url'][streamType], fmt=i['quality']))],
+                    parts = [PartObject(key=Callback(PlayVideo, url=i['url'][streamType], fmt=i['quality'], start_url=url))],
                     protocol=streamType,
                     container = Container.MP4,
                     video_codec = VideoCodec.H264,
@@ -89,7 +89,7 @@ def MediaObjectsForURL(url):
         else:
             f = getStreamFile(files, Prefs['quality'])
             mos.append(MediaObject(
-                parts = [PartObject(key=Callback(PlayVideo, url=f['url'][streamType], fmt=f['quality']))],
+                parts = [PartObject(key=Callback(PlayVideo, url=f['url'][streamType], fmt=f['quality'], start_url=url))],
                 protocol=streamType,
                 container = Container.MP4,
                 video_codec = VideoCodec.H264,
@@ -103,9 +103,10 @@ def MediaObjectsForURL(url):
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, fmt=None):
+def PlayVideo(url, fmt=None, start_url=""):
     try:
         #return Redirect(url)
+        marktime(start_url)
         return IndirectResponse(VideoClipObject, key=url)
 
         # item = GetItem(url)
@@ -126,6 +127,19 @@ def PlayVideo(url, fmt=None):
 ####################################################################################################
 # Queue fix (PlayVideoIndirect was renamed to PlayVideo at one point)
 PlayVideoIndirect = PlayVideo
+
+def marktime(url):
+    Log.Exception("URL: %s" % url)
+    item = GetItem(url)
+    params = GetServiceParams(url)
+    video = GetVideoFromItem(item, params)
+
+    token = url.split('#')[0].split('?')[1].split('=')[1]
+    v = params['video'] if params.get('video') else params['episode']
+    s = params['season'] if params.get('season') else 0
+    response = HTTP.Request("http://api.service-kp.com/v1/watching/marktime?access_token=%s&id=%s&video=%s&season=%s&time=%s" % (token, item['id'], v, s, video['duration']), cacheTime=0)
+    Log.Exception("DATA: %s" % response)
+
 
 def GetServiceParams(url):
     params = {}
@@ -165,7 +179,7 @@ def GetVideoFromUrl(url):
 def GetItem(url):
     if '#' in url:
         url = url.split('#')[0]
-    response = HTTP.Request(url, cacheTime=0)
+    response = HTTP.Request(url, cacheTime=5)
     response = json.loads(str(response).decode('utf-8'))
     if response['status'] == 200:
         return response['item']
