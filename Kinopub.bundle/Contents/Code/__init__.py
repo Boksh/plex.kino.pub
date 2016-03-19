@@ -63,6 +63,8 @@ def authenticate():
             status, response = kpubapi.get_access_token(refresh=True)
             if status == kpubapi.STATUS_SUCCESS:
                 return True
+            if status == kpubapi.STATUS_ERROR:
+                return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
 
         if settings.get('device_code'):
             # refresh device_code if it expired else device_check code auth
@@ -357,7 +359,7 @@ def View(title, qp=dict):
                         watch_title = "В процессе"
                     else:
                         watch_title = "Не просмотрен"
-                    season_title = season['title'] if len(season['title']) > 2 else "Сезон %s" % int(season['number'])
+                    season_title = season['title'] if season['title'] and len(season['title']) > 2 else "Сезон %s" % int(season['number'])
                     season_title = "%s     [ %s ]" % (season_title, watch_title)
                     test_url = item['posters']['medium']
                     li = DirectoryObject(
@@ -389,9 +391,9 @@ def View(title, qp=dict):
                 rating_key = item['id'],
                 year = int(item['year']),
                 summary = str(item['plot']),
-                genres = [x['title'] for x in item['genres']],
+                genres = [x['title'] for x in item['genres']] if item['genres'] else [],
                 directors = item['director'].split(','),
-                countries = [x['title'] for x in item['countries']],
+                countries = [x['title'] for x in item['countries']] if item['countries'] else [],
                 content_rating = item['rating'],
                 thumb = Resource.ContentsOfURLWithFallback(video['thumbnail'], fallback=R(ICON))
             )

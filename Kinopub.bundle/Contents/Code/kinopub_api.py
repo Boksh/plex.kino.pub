@@ -119,6 +119,8 @@ class API(object):
         resp = self.auth_request(url, data)
         error = resp.get('error')
         if error:
+            if resp.get('status') == 401:
+                return self.STATUS_EXPIRED, resp
             return self.STATUS_ERROR, resp
 
         self.device_code = resp['code']
@@ -160,7 +162,7 @@ class API(object):
 
     def is_authenticated(self):
         response = self.api_request('types', disableHTTPHandler=True)
-        if self.access_token and not self.is_expiring() and response['status'] == 200 and not self.device_code:
+        if self.access_token and not self.is_expiring() and response['status'] in [200, 502, 404] and not self.device_code:
             return True
 
         return False
