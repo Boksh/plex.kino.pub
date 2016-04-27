@@ -32,6 +32,22 @@ STATUS_UNWATCHED = -1
 STATUS_STARTED = 0
 
 ####################################################################################################
+def update_device_info():
+    title = "PlexMediaServer"
+    version = ""
+    try:
+        node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
+        title = node.attrib['friendlyName']
+        version = "(%s)" % ndoe.attrib['version']
+    except:
+        pass
+    kpubapi.api_request('device/notify', params={
+        'title': title,
+        'hardware': "%s (%s)" % (Platform.OS, Platform.CPU),
+        'software': "PlexMediaServer %s" % version,
+    }, method="POST")
+
+
 def Start():
     Plugin.AddViewGroup('InfoList', viewMode='InfoList', mediaType='items')
     Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
@@ -70,19 +86,6 @@ def authenticate():
                 while True:
                     status, response = kpubapi.get_access_token()
                     if status == kpubapi.STATUS_SUCCESS:
-                        title = "PlexMediaServer"
-                        version = ""
-                        try:
-                            node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
-                            title = node.attrib['friendlyName']
-                            version = "(%s)" % ndoe.attrib['version']
-                        except:
-                            pass
-                        kpubapi.api_request('device/notify', params={
-                            'title': title,
-                            'hardware': "%s (%s)" % (Platform.OS, Platform.CPU),
-                            'software': "PlexMediaServer %s" % version,
-                        })
                         return True
                     Thread.Sleep(4.5)
             Thread.Create(verify_code)
