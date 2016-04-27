@@ -123,6 +123,7 @@ class API(object):
                 return self.STATUS_EXPIRED, resp
             return self.STATUS_ERROR, resp
 
+        Log(resp)
         self.device_code = resp['code']
         self.user_code = resp['user_code']
         self.verification_uri = resp['verification_uri']
@@ -162,7 +163,7 @@ class API(object):
 
     def is_authenticated(self):
         response = self.api_request('types', disableHTTPHandler=True)
-        if response.get('status') == 200 and:
+        if response.get('status') == 200:
             return True
         if response.get('status') == 401:
             return False
@@ -205,7 +206,7 @@ class API(object):
             if method == "GET":
                 req_url = "%s/%s?%s" % (url, action, uparams)
             else:
-                req_url = "%s/%s" % (url, action)
+                req_url = "%s/%s?access_token=%s" % (url, action, self.access_token)
             if self.HTTPHandler and not disableHTTPHandler:
                 if method == "GET":
                     response = str(self.HTTPHandler.Request(req_url, cacheTime=cacheTime)).decode('utf-8')

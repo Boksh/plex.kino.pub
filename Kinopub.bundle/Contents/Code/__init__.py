@@ -10,7 +10,7 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
-VERSION = "1.1.0"
+VERSION = "1.0.9"
 VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
@@ -41,7 +41,7 @@ def update_device_info():
             try:
                 node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
                 title = node.attrib['friendlyName']
-                version = "(%s)" % ndoe.attrib['version']
+                version = "(%s)" % node.attrib['version']
             except:
                 pass
             kpubapi.api_request('device/notify', params={
@@ -85,19 +85,19 @@ def authenticate():
                 if status == kpubapi.STATUS_SUCCESS:
                     update_device_info()
                     return True
-                Thread.Sleep(4.5)
+                Thread.Sleep(5)
         Thread.Create(verify_code)
 
         status, response = kpubapi.get_device_code()
         if status == kpubapi.STATUS_SUCCESS:
             return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
-        return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
+        return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин 111.")
 
 
     auth_status = kpubapi.is_authenticated()
     if auth_status:
         return True
-    else if auth_status == None:
+    elif auth_status == None:
         return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
     else:
         # check if we have refresh token
@@ -110,10 +110,7 @@ def authenticate():
                 return show_device_code()
             return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
 
-        status, response = kpubapi.get_device_code()
-        if status == kpubapi.STATUS_SUCCESS:
-            return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
-        return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
+        return show_device_code()
 
 def show_videos(oc, items):
     video_clips = {}
@@ -579,3 +576,4 @@ def get_unwatched_count():
         for serial in response_serials['items']:
             count += serial['new']
     return count
+
