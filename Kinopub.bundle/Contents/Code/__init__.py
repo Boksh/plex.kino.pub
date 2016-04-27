@@ -10,7 +10,7 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
-VERSION = "1.0.7"
+VERSION = "1.1.0"
 VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
@@ -33,22 +33,29 @@ STATUS_STARTED = 0
 
 ####################################################################################################
 def update_device_info():
-    title = "PlexMediaServer"
-    version = ""
-    try:
-        node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
-        title = node.attrib['friendlyName']
-        version = "(%s)" % ndoe.attrib['version']
-    except:
-        pass
-    kpubapi.api_request('device/notify', params={
-        'title': title,
-        'hardware': "%s (%s)" % (Platform.OS, Platform.CPU),
-        'software': "PlexMediaServer %s" % version,
-    }, method="POST")
+    last_update = settings.get('device_info_update')
+    if not last_update or int(last_update) + 1800 < int(float(time.time())):
+        try:
+            title = "PlexMediaServer"
+            version = ""
+            try:
+                node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
+                title = node.attrib['friendlyName']
+                version = "(%s)" % ndoe.attrib['version']
+            except:
+                pass
+            kpubapi.api_request('device/notify', params={
+                'title': title,
+                'hardware': "%s (%s)" % (Platform.OS, Platform.CPU),
+                'software': "PlexMediaServer %s" % version,
+            }, method="POST")
+            settings.set('device_info_update', str(int(float(time.time()))))
+        except:
+            pass
 
 
 def Start():
+    update_device_info()
     Plugin.AddViewGroup('InfoList', viewMode='InfoList', mediaType='items')
     Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
 
@@ -86,6 +93,7 @@ def authenticate():
                 while True:
                     status, response = kpubapi.get_access_token()
                     if status == kpubapi.STATUS_SUCCESS:
+                        update_device_info()
                         return True
                     Thread.Sleep(4.5)
             Thread.Create(verify_code)
