@@ -78,58 +78,42 @@ def ValidatePrefs():
     return
 
 def authenticate():
-    if kpubapi.is_authenticated():
+    def show_device_code():
+        def verify_code():
+            while True:
+                status, response = kpubapi.get_access_token()
+                if status == kpubapi.STATUS_SUCCESS:
+                    update_device_info()
+                    return True
+                Thread.Sleep(4.5)
+        Thread.Create(verify_code)
+
+        status, response = kpubapi.get_device_code()
+        if status == kpubapi.STATUS_SUCCESS:
+            return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
+        return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
+
+
+    auth_status = kpubapi.is_authenticated()
+    if auth_status:
         return True
+    else if auth_status == None:
+        return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
     else:
         # check if we have refresh token
         if settings.get('refresh_token'):
             status, response = kpubapi.get_access_token(refresh=True)
             if status == kpubapi.STATUS_SUCCESS:
                 return True
+            if response.get('status') == 400:
+                kpubapi.reset_settings()
+                return show_device_code()
             return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
 
-        if settings.get('device_code'):
-            def verify_code():
-                while True:
-                    status, response = kpubapi.get_access_token()
-                    if status == kpubapi.STATUS_SUCCESS:
-                        update_device_info()
-                        return True
-                    Thread.Sleep(4.5)
-            Thread.Create(verify_code)
-
-            # refresh device_code if it expired else device_check code auth
-            dev_expire = kpubapi.is_expiring(token_name="device_code", expire_announce=150)
-            Log("[authenticate] Devi expire is: %s" % dev_expire)
-            if kpubapi.is_expiring(token_name="device_code", expire_announce=150):
-                Log("[authenticate] Device code is expired")
-                status, response = kpubapi.get_device_code()
-                if status == kpubapi.STATUS_SUCCESS:
-                    return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
-                return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
-
-            status, response = kpubapi.get_access_token()
-            Log("AUTH response status=%s,\n%s" % (status, response))
-            if status == kpubapi.STATUS_PENDING:
-                return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
-            elif status == kpubapi.STATUS_SUCCESS:
-                return True
-            return MessageContainer("Ошибка", "Произошла ошибка при авторизации устройства, перезапустите плагин.")
-        else:
-            status, response = kpubapi.get_device_code()
-            if status == kpubapi.STATUS_SUCCESS:
-                return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
-            return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
-
-        # try to get API, if 401 error we are not authorized. 
-        response = kpubapi.api_request('types', disableHTTPHandler=True)
-        if response.get('error') or response.get('status') == 401:
-            if int(response.get('status')) == 401:
-                kpubapi.reset_settings()
-                return MessageContainer("Ошибка", "Устройство не авторизировано. Перезапустите плагин.")
-            return MessageContainer("Ошибка", "Не получен ответ от сервера.")
-
-        return True
+        status, response = kpubapi.get_device_code()
+        if status == kpubapi.STATUS_SUCCESS:
+            return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
+        return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
 
 def show_videos(oc, items):
     video_clips = {}

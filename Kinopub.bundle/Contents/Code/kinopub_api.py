@@ -162,10 +162,11 @@ class API(object):
 
     def is_authenticated(self):
         response = self.api_request('types', disableHTTPHandler=True)
-        if self.access_token and not self.is_expiring() and response['status'] in [200, 502, 404] and not self.device_code:
+        if response.get('status') == 200 and:
             return True
-
-        return False
+        if response.get('status') == 401:
+            return False
+        return None
 
     def is_expiring(self, token_name="access_token", expire_announce=900):
         try:
