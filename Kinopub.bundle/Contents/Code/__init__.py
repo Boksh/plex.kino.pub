@@ -63,10 +63,30 @@ def authenticate():
             status, response = kpubapi.get_access_token(refresh=True)
             if status == kpubapi.STATUS_SUCCESS:
                 return True
-            if status == kpubapi.STATUS_ERROR:
-                return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
+            return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
 
         if settings.get('device_code'):
+            def verify_code():
+                while True:
+                    status, response = kpubapi.get_access_token()
+                    if status == kpubapi.STATUS_SUCCESS:
+                        title = "PlexMediaServer"
+                        version = ""
+                        try:
+                            node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
+                            title = node.attrib['friendlyName']
+                            version = "(%s)" % ndoe.attrib['version']
+                        except:
+                            pass
+                        kpubapi.api_request('device/notify', params={
+                            'title': title,
+                            'hardware': "%s (%s)" % (Platform.OS, Platform.CPU),
+                            'software': "PlexMediaServer %s" % version,
+                        })
+                        return True
+                    Thread.Sleep(4.5)
+            Thread.Create(verify_code)
+
             # refresh device_code if it expired else device_check code auth
             dev_expire = kpubapi.is_expiring(token_name="device_code", expire_announce=150)
             Log("[authenticate] Devi expire is: %s" % dev_expire)
@@ -76,6 +96,7 @@ def authenticate():
                 if status == kpubapi.STATUS_SUCCESS:
                     return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
                 return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин.")
+
             status, response = kpubapi.get_access_token()
             Log("AUTH response status=%s,\n%s" % (status, response))
             if status == kpubapi.STATUS_PENDING:
