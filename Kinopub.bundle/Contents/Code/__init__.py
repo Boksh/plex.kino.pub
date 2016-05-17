@@ -32,9 +32,9 @@ STATUS_UNWATCHED = -1
 STATUS_STARTED = 0
 
 ####################################################################################################
-def update_device_info():
+def update_device_info(force=False):
     last_update = settings.get('device_info_update')
-    if not last_update or int(last_update) + 1800 < int(float(time.time())):
+    if force or (not last_update or int(last_update) + 1800 < int(float(time.time()))):
         try:
             title = "PlexMediaServer"
             version = ""
@@ -83,7 +83,7 @@ def authenticate():
             while True:
                 status, response = kpubapi.get_access_token()
                 if status == kpubapi.STATUS_SUCCESS:
-                    update_device_info()
+                    update_device_info(force=True)
                     return True
                 Thread.Sleep(5)
         Thread.Create(verify_code)
