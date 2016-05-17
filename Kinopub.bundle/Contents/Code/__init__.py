@@ -106,7 +106,7 @@ def authenticate():
             if status == kpubapi.STATUS_SUCCESS:
                 return True
             if response.get('status') == 400:
-                kpubapi.reset_settings()
+                #kpubapi.reset_settings()
                 return show_device_code()
             return MessageContainer("Ошибка", "Произошла ошибка при обращении к серверу. Попробуйте повторить запрос позже.")
 
