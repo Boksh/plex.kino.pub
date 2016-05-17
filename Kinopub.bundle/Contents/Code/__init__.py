@@ -10,7 +10,7 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
-VERSION = "1.0.9"
+VERSION = "1.1.0"
 VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
