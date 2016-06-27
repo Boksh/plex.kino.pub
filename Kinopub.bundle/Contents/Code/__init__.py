@@ -10,7 +10,7 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
@@ -133,13 +133,26 @@ def show_videos(oc, items):
                             #rating = float(item['rating']),
                             summary = str(item['plot']),
                             genres = [x['title'] for x in item['genres']],
-                            directors = item['director'].split(','),
+                            #directors = item['director'].split(','),
                             countries = [x['title'] for x in item['countries']],
                             content_rating = item['rating'],
                             duration = int(videos[0]['duration'])*1000,
                             thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
                         )
-                        
+
+                        try:
+                            li.directors.clear()
+                            li.roles.clear()
+                            for d in item['director'].split(','):
+                                li.directors.add(d.strip())
+                            for a in item['cast'].split(','):
+                                role = li.roles.new()
+                                role.title = a.strip()
+                                role.role = "Актёр"
+                                li.roles.add(li)
+                        except Exception, e:
+                            Log("--------- %s -----"  % e)
+                            pass
                     else:
                         # create directory for seasons and multiseries videos
                         li = DirectoryObject(
