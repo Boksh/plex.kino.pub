@@ -133,7 +133,6 @@ def show_videos(oc, items):
                             #rating = float(item['rating']),
                             summary = str(item['plot']),
                             genres = [x['title'] for x in item['genres']],
-                            #directors = item['director'].split(','),
                             countries = [x['title'] for x in item['countries']],
                             content_rating = item['rating'],
                             duration = int(videos[0]['duration'])*1000,
@@ -150,8 +149,7 @@ def show_videos(oc, items):
                                 role.title = a.strip()
                                 role.role = "Актёр"
                                 li.roles.add(li)
-                        except Exception, e:
-                            Log("--------- %s -----"  % e)
+                        except:
                             pass
                     else:
                         # create directory for seasons and multiseries videos
@@ -418,11 +416,24 @@ def View(title, qp=dict):
                 year = int(item['year']),
                 summary = str(item['plot']),
                 genres = [x['title'] for x in item['genres']] if item['genres'] else [],
-                directors = item['director'].split(','),
                 countries = [x['title'] for x in item['countries']] if item['countries'] else [],
                 content_rating = item['rating'],
                 thumb = Resource.ContentsOfURLWithFallback(video['thumbnail'], fallback=R(ICON))
             )
+
+            try:
+                li.directors.clear()
+                li.roles.clear()
+                for d in item['director'].split(','):
+                    li.directors.add(d.strip())
+                for a in item['cast'].split(','):
+                    role = li.roles.new()
+                    role.title = a.strip()
+                    role.role = "Актёр"
+                    li.roles.add(li)
+            except:
+                pass
+
             oc.add(li)
     return oc
 

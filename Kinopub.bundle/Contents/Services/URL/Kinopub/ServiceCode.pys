@@ -41,8 +41,21 @@ def MetadataObjectForURL(url):
             clipParams['countries'] = [x['title'] for x in item['countries']]
             clipParams['summary'] = item['plot']
 
-        return VideoClipObject(**clipParams)
-        raise Exception()
+        vco = VideoClipObject(**clipParams)
+        try:
+            vco.directors.clear()
+            vco.roles.clear()
+            for d in item['director'].split(','):
+                vco.directors.add(d.strip())
+            for a in item['cast'].split(','):
+                role = li.roles.new()
+                role.title = a.strip()
+                role.role = "Актёр"
+                vco.roles.add(li)
+        except:
+            pass
+
+        return vco
     except Exception, e:
         return VideoClipObject(
             title = '<error>',
