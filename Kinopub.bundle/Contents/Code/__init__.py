@@ -10,7 +10,7 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
@@ -192,6 +192,10 @@ def MainMenu():
             key     = Callback(Search, qp={}),
             title   = unicode('Поиск'),
             prompt  = unicode('Поиск')
+        ),
+        DirectoryObject(
+            key = Callback(Tv, title='Рио 2016', qp={}),
+            title = unicode('Рио 2016')
         ),
         DirectoryObject(
             key = Callback(Watching, title='Новые эпизоды', qp={}),
@@ -575,6 +579,45 @@ def Collections(title, qp=dict):
                 oc.add(li)
     return oc
 
+@indirect
+def PlayVideo(url):
+    return IndirectResponse(VideoClipObject, key=url)
+
+@route(PREFIX + '/Tv', qp=dict)
+def Tv(title, qp=dict, include_container=False):
+    result = authenticate()
+    if not result == True:
+        return result
+
+    oc = ObjectContainer(title2=unicode(title), view_group='InfoList')
+    response = kpubapi.api_request('tv/index', cacheTime=320)
+
+    if response['status'] == 200:
+        for ch in response['channels']:
+            li = VideoClipObject(
+                key = Callback(Tv, title=ch['title'], qp={'id' : ch['id']}, include_container=True),
+                rating_key = ch['stream'],
+                title = ch['title'],
+                thumb = Resource.ContentsOfURLWithFallback(ch['logos']['s'], fallback='icon-default.png'),
+                items = [
+                    MediaObject(
+                        parts = [
+                            PartObject(key=Callback(PlayVideo, url=ch['stream']))
+                        ],
+                        protocol = 'hls',
+                        audio_codec = AudioCodec.AAC,
+                        container = Container.MP4,
+                        video_codec = VideoCodec.H264
+                    )
+                ]
+            )
+
+            if 'id' in qp and qp['id'] == ch['id']:
+                if include_container:
+                    return ObjectContainer(objects=[li])
+            else:
+                oc.add(li)
+    return oc
 
 ####################
 def merge_dicts(*args):
