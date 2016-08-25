@@ -342,11 +342,17 @@ def View(title, qp=dict):
         return result
 
     response = kpubapi.api_request('items/%s' % int(qp['id']))
-    oc = ObjectContainer(title2=unicode(title), view_group='InfoList')
     if response['status'] == 200:
         item = response['item']
+        show_title = item['title']
+        show_title = show_title.split(" / ");
+        if len(show_title) > 1:
+            show_title = show_title[1]
+        else:
+            show_title = show_title[0]
         # prepare serials
         if item['type'] in ['serial', 'docuserial']:
+            oc = ObjectContainer(title1=show_title,title2=unicode(title), view_group='InfoList')
             watch_info = kpubapi.api_request("watching", {'id': qp['id']}, cacheTime=0)['item']
             if 'season' in qp:
                 for season in item['seasons']:
@@ -357,21 +363,23 @@ def View(title, qp=dict):
                             episode_number += 1
                             # create playable item
                             episode_title = "%s" % episode['title'] if len(episode['title']) > 1 else "Эпизод %s" % episode_number
-                            episode_title = "%02d. %s"  % (episode_number, episode_title)
+                            episode_title = "s%02de%02d. %s"  % (season['number'], episode_number, episode_title)
                             watch_title = ""
                             if watch_episode['status'] == 1:
-                                watch_title = "Просмотрен"
+                                watch_title = "✓"
                             elif watch_episode['status'] == 0:
-                                watch_title = "В процессе"
+                                watch_title = "➤"
                             else:
-                                watch_title = "Не просмотрен"
+                                watch_title = "✕"
 
-                            episode_title = "%s     [ %s ]" % (episode_title, watch_title)
+                            episode_title = "%s %s" % (watch_title, episode_title)
+
                             li = EpisodeObject(
                                 url = "%s/%s?access_token=%s#season=%s&episode=%s" % (ITEM_URL, item['id'], settings.get('access_token'), season['number'], episode_number),
                                 title = unicode(episode_title),
                                 index = episode_number,
                                 rating_key = episode['id'],
+                                show = show_title,
                                 duration = int(episode['duration'])*1000,
                                 thumb = Resource.ContentsOfURLWithFallback(episode['thumbnail'], fallback=R(ICON))
                             )
@@ -382,13 +390,13 @@ def View(title, qp=dict):
                     watch_season = watch_info['seasons'][int(season['number'])-1]
                     watch_title = ""
                     if watch_season['status'] == 1:
-                        watch_title = "Просмотрен"
+                        watch_title = "✓"
                     elif watch_season['status'] == 0:
-                        watch_title = "В процессе"
+                        watch_title = "➤"
                     else:
-                        watch_title = "Не просмотрен"
+                        watch_title = "✕"
                     season_title = season['title'] if season['title'] and len(season['title']) > 2 else "Сезон %s" % int(season['number'])
-                    season_title = "%s     [ %s ]" % (season_title, watch_title)
+                    season_title = "%s %s" % (watch_title, season_title)
                     test_url = item['posters']['medium']
                     li = DirectoryObject(
                         key = Callback(View, title=season_title, qp={'id': item['id'], 'season': season['number']}),
@@ -398,6 +406,7 @@ def View(title, qp=dict):
                     oc.add(li)
         #prepare movies, concerts, 3d
         elif 'videos' in item and len(item['videos']) > 1:
+            oc = ObjectContainer(title1=show_title,title2=unicode(title), view_group='InfoList')
             for video_number, video in enumerate(item['videos']):
                 video_number += 1
                 # create playable item
@@ -411,6 +420,7 @@ def View(title, qp=dict):
                 )
                 oc.add(li)
         else:
+            oc = ObjectContainer(title1=show_title,title2=unicode(title), view_group='InfoList')
             video = item['videos'][0]
             video_number = 1
             li = MovieObject(
