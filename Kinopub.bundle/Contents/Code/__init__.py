@@ -196,8 +196,8 @@ def MainMenu():
             prompt  = unicode('Поиск')
         ),
         DirectoryObject(
-            key = Callback(Tv, title='Рио 2016', qp={}),
-            title = unicode('Рио 2016')
+            key = Callback(Tv, title='ТВ', qp={}),
+            title = unicode('ТВ')
         ),
         DirectoryObject(
             key = Callback(Watching, title='Новые эпизоды', qp={}),
