@@ -11,3 +11,4 @@ class Settings():
 
     def set(self, key, value):
         self.storage[key] = value
+        self.storage.Save()

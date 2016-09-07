@@ -80,12 +80,14 @@ def ValidatePrefs():
 def authenticate():
     def show_device_code():
         def verify_code():
+            start_time = time.time()
             while True:
-                status, response = kpubapi.get_access_token()
-                if status == kpubapi.STATUS_SUCCESS:
-                    update_device_info(force=True)
-                    return True
-                Thread.Sleep(5)
+                if int(time.time() - start_time) > 5:
+                    start_time = time.time()
+                    status, response = kpubapi.get_access_token()
+                    if status == kpubapi.STATUS_SUCCESS:
+                        update_device_info(force=True)
+                        return True
         Thread.Create(verify_code)
 
         status, response = kpubapi.get_device_code()
@@ -124,7 +126,7 @@ def show_videos(oc, items):
                 response = kpubapi.api_request('items/%s' % item['id'])
                 if response['status'] == 200:
                     videos = response['item'].get('videos', [])
-                    if item['type'] not in ['serial', 'docuserial'] and len(videos) <= 1:
+                    if item['type'] not in ['serial', 'docuserial', 'tvshow'] and len(videos) <= 1:
                         # create playable item
                         li = VideoClipObject(
                             url = "%s/%s?access_token=%s#video=1" % (ITEM_URL, item['id'], settings.get('access_token')),
@@ -351,7 +353,7 @@ def View(title, qp=dict):
         else:
             show_title = show_title[0]
         # prepare serials
-        if item['type'] in ['serial', 'docuserial']:
+        if item['type'] in ['serial', 'docuserial', 'tvshow']:
             oc = ObjectContainer(title1=show_title,title2=unicode(title), view_group='InfoList')
             watch_info = kpubapi.api_request("watching", {'id': qp['id']}, cacheTime=0)['item']
             if 'season' in qp:
