@@ -10,7 +10,7 @@ import time
 import sys
 sys.setdefaultencoding("utf-8")
 
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
@@ -88,10 +88,10 @@ def authenticate():
                     if status == kpubapi.STATUS_SUCCESS:
                         update_device_info(force=True)
                         return True
-        Thread.Create(verify_code)
 
         status, response = kpubapi.get_device_code()
         if status == kpubapi.STATUS_SUCCESS:
+            Thread.Create(verify_code)
             return MessageContainer("Активация устройства", "%s\nПосетите %s для активации устройства" % (settings.get('user_code'),settings.get('verification_uri')))
         return MessageContainer("Ошибка", "Произошла ошибка при обновлении кода устройства, перезапустите плагин 111.")
 
@@ -123,45 +123,42 @@ def show_videos(oc, items):
 
             @task
             def load_task(num=num, item=item, video_clips=video_clips):
-                response = kpubapi.api_request('items/%s' % item['id'])
-                if response['status'] == 200:
-                    videos = response['item'].get('videos', [])
-                    if item['type'] not in ['serial', 'docuserial', 'tvshow'] and len(videos) <= 1:
-                        # create playable item
-                        li = VideoClipObject(
-                            url = "%s/%s?access_token=%s#video=1" % (ITEM_URL, item['id'], settings.get('access_token')),
-                            title = item['title'],
-                            year = int(item['year']),
-                            #rating = float(item['rating']),
-                            summary = str(item['plot']),
-                            genres = [x['title'] for x in item['genres']],
-                            countries = [x['title'] for x in item['countries']],
-                            content_rating = item['rating'],
-                            duration = int(videos[0]['duration'])*1000,
-                            thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
-                        )
+                if item['type'] not in ['serial', 'docuserial', 'tvshow'] and item['subtype'] != "multi":
+                    # create playable item
+                    li = VideoClipObject(
+                        url = "%s/%s?access_token=%s#video=1" % (ITEM_URL, item['id'], settings.get('access_token')),
+                        title = item['title'],
+                        year = int(item['year']),
+                        #rating = float(item['rating']),
+                        summary = str(item['plot']),
+                        genres = [x['title'] for x in item['genres']],
+                        countries = [x['title'] for x in item['countries']],
+                        content_rating = item['rating'],
+                        #duration = int(videos[0]['duration'])*1000,
+                        thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
+                    )
 
-                        try:
-                            li.directors.clear()
-                            li.roles.clear()
-                            for d in item['director'].split(','):
-                                li.directors.add(d.strip())
-                            for a in item['cast'].split(','):
-                                role = li.roles.new()
-                                role.title = a.strip()
-                                role.role = "Актёр"
-                                li.roles.add(li)
-                        except:
-                            pass
-                    else:
-                        # create directory for seasons and multiseries videos
-                        li = DirectoryObject(
-                            key = Callback(View, title=item['title'], qp={'id': item['id']}),
-                            title = item['title'],
-                            summary = item['plot'],
-                            thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
-                        )
-                    video_clips[num] = li
+                    try:
+                        li.directors.clear()
+                        li.roles.clear()
+                        for d in item['director'].split(','):
+                            li.directors.add(d.strip())
+                        for a in item['cast'].split(','):
+                            role = li.roles.new()
+                            role.title = a.strip()
+                            role.role = "Актёр"
+                            li.roles.add(li)
+                    except:
+                        pass
+                else:
+                    # create directory for seasons and multiseries videos
+                    li = DirectoryObject(
+                        key = Callback(View, title=item['title'], qp={'id': item['id']}),
+                        title = item['title'],
+                        summary = item['plot'],
+                        thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
+                    )
+                video_clips[num] = li
 
     for key in sorted(video_clips):
         oc.add(video_clips[key])
