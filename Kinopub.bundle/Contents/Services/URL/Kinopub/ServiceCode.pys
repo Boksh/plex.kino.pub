@@ -48,7 +48,7 @@ def MetadataObjectForURL(url):
                 vco.directors.add(d.strip())
             for a in item['cast'].split(','):
                 role = li.roles.new()
-                role.title = a.strip()
+                role.name = a.strip()
                 role.role = "Актёр"
                 vco.roles.add(li)
         except:

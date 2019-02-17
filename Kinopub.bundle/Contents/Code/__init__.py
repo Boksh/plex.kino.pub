@@ -25,7 +25,7 @@ settings = kinopub_settings.Settings(Dict, storage_type="dict")
 kpubapi = kinopub_api.API(settings, HTTPHandler=HTTP)
 
 ITEM_URL = kinopub_api.API_URL + '/items'
-ITEMS_PER_PAGE = 19
+ITEMS_PER_PAGE = 10
 
 STATUS_WATCHED = 1
 STATUS_UNWATCHED = -1
@@ -114,6 +114,18 @@ def authenticate():
 
         return show_device_code()
 
+def addRatingToPlot(item):
+    try:
+        plotArr = []
+        if not item['rating'] is None: plotArr.append('kpub: %s/%s' % (item['rating'],item['views']))
+        if not item['imdb_rating'] is None: plotArr.append('imdb: %s/%s' % (item['imdb_rating'],item['imdb_votes']))
+        if not item['kinopoisk_rating'] is None: plotArr.append('kinopoisk: %s/%s' % (item['kinopoisk_rating'], item['kinopoisk_votes']))
+        plotArr.append('Описание: %s' % (item['plot']))
+        return ', '.join(plotArr)
+    except Exception as e:
+        Log(e)
+        return item['plot']
+
 def show_videos(oc, items):
     video_clips = {}
     @parallelize
@@ -130,7 +142,8 @@ def show_videos(oc, items):
                         title = item['title'],
                         year = int(item['year']),
                         #rating = float(item['rating']),
-                        summary = str(item['plot']),
+                        #summary = str(item['plot']),
+                        summary = addRatingToPlot(item),
                         genres = [x['title'] for x in item['genres']],
                         countries = [x['title'] for x in item['countries']],
                         content_rating = item['rating'],
@@ -145,7 +158,7 @@ def show_videos(oc, items):
                             li.directors.add(d.strip())
                         for a in item['cast'].split(','):
                             role = li.roles.new()
-                            role.title = a.strip()
+                            role.name = a.strip()
                             role.role = "Актёр"
                             li.roles.add(li)
                     except:
@@ -155,7 +168,7 @@ def show_videos(oc, items):
                     li = DirectoryObject(
                         key = Callback(View, title=item['title'], qp={'id': item['id']}),
                         title = item['title'],
-                        summary = item['plot'],
+                        summary = addRatingToPlot(item),
                         thumb = Resource.ContentsOfURLWithFallback(item['posters']['medium'], fallback=R(ICON))
                     )
                 video_clips[num] = li
@@ -165,7 +178,7 @@ def show_videos(oc, items):
 
     return oc
 
-def show_pagination(oc, pagination, qp, title="", callback=None):
+def show_pagination(oc, pagination, qp, title="", callback=None, suffix=''):
         # Add "next page" button
         if callback is None:
             callback = Items
@@ -173,7 +186,7 @@ def show_pagination(oc, pagination, qp, title="", callback=None):
         if (int(pagination['current'])) + 1 <= int(pagination['total']):
             qp['page'] = int(pagination['current'])+1
             li = NextPageObject(
-                key = Callback(callback, title=title, qp=qp),
+                key = Callback(callback, title=title, qp=qp, suffix=suffix),
                 title = unicode('Еще...')
             )
             oc.add(li)
@@ -193,8 +206,23 @@ def MainMenu():
             prompt  = unicode('Поиск')
         ),
         DirectoryObject(
-            key = Callback(Tv, title='ТВ', qp={}),
-            title = unicode('ТВ')
+            key = Callback(Bookmarks, title='Закладки', qp={}),
+            title = unicode('Закладки'),
+        ),
+        DirectoryObject(
+            key = Callback(Items, title='Новинки', qp={'type': ''}, suffix='/hot'),
+            title = unicode('Новинки'),
+            summary = unicode('Новинки на ресурсе')
+        ),
+        DirectoryObject(
+            key = Callback(Items, title='Свежее', qp={'type': ''}, suffix='/fresh'),
+            title = unicode('Свежее'),
+            summary = unicode('Свежее')
+        ),
+        DirectoryObject(
+            key = Callback(Items, title='Просматриваемые', qp={'type': ''}, suffix='/popular'),
+            title = unicode('Просматриваемые'),
+            summary = unicode('Просматриваемые')
         ),
         DirectoryObject(
             key = Callback(Watching, title='Новые эпизоды', qp={}),
@@ -215,9 +243,9 @@ def MainMenu():
             summary = unicode('Все фильмы и сериалы отсортированные по рейтингу.')
         ),
         DirectoryObject(
-            key = Callback(Bookmarks, title='Закладки', qp={}),
-            title = unicode('Закладки'),
-        ),
+            key = Callback(Tv, title='ТВ', qp={}),
+            title = unicode('ТВ')
+        )
     ]
 
     version = check_version()
@@ -266,6 +294,21 @@ def Types(title, qp=dict):
                 key     = Callback(Search, qp=qp),
                 title   = unicode('Поиск'),
                 prompt  = unicode('Поиск')
+            ),
+            DirectoryObject(
+                key = Callback(Items, title='Новинки', qp=qp, suffix='/hot'),
+                title = unicode('Новинки'),
+                summary = unicode('Новинки на ресурсе')
+            ),
+            DirectoryObject(
+                key = Callback(Items, title='Свежее', qp=qp, suffix='/fresh'),
+                title = unicode('Свежее'),
+                summary = unicode('Свежее')
+            ),
+            DirectoryObject(
+                key = Callback(Items, title='Просматриваемые', qp=qp, suffix='/popular'),
+                title = unicode('Просматриваемые'),
+                summary = unicode('Просматриваемые')
             ),
             DirectoryObject(
                 key = Callback(Items, title='Последние', qp=merge_dicts(qp, dict({'sort': '-updated'}))),
@@ -318,17 +361,17 @@ def Genres(title, qp=dict):
   See http://kino.pub/docs/api/v2/api.html#video
 '''
 @route(PREFIX + '/Items', qp=dict)
-def Items(title, qp=dict):
+def Items(title, qp=dict, suffix=''):
     result = authenticate()
     if not result == True:
         return result
 
     qp['perpage'] = ITEMS_PER_PAGE
-    response = kpubapi.api_request('items', qp)
+    response = kpubapi.api_request('items%s' % suffix, qp)
     oc = ObjectContainer(title2=unicode(title), view_group='InfoList')
     if response['status'] == 200:
         show_videos(oc, response['items'])
-        show_pagination(oc, response['pagination'], qp, title=title)
+        show_pagination(oc, response['pagination'], qp, title=title, suffix=suffix)
     return oc
 
 '''
@@ -427,7 +470,8 @@ def View(title, qp=dict):
                 title = item['title'],
                 rating_key = item['id'],
                 year = int(item['year']),
-                summary = str(item['plot']),
+                summary = addRatingToPlot(item),
+                #summary = str(item['plot']),
                 genres = [x['title'] for x in item['genres']] if item['genres'] else [],
                 countries = [x['title'] for x in item['countries']] if item['countries'] else [],
                 content_rating = item['rating'],
@@ -441,7 +485,7 @@ def View(title, qp=dict):
                     li.directors.add(d.strip())
                 for a in item['cast'].split(','):
                     role = li.roles.new()
-                    role.title = a.strip()
+                    role.name = a.strip()
                     role.role = "Актёр"
                     li.roles.add(li)
             except:
@@ -548,7 +592,7 @@ def Collections(title, qp=dict):
 
     oc = ObjectContainer(title2=unicode(title), view_group='InfoList', )
     if 'id' not in qp:
-        objects = [            
+        objects = [
             DirectoryObject(
                 key = Callback(Collections, title='Последние', qp=merge_dicts(qp, {'sort': '-created'})),
                 title = unicode('Последние')
@@ -652,4 +696,3 @@ def get_unwatched_count():
         for serial in response_serials['items']:
             count += serial['new']
     return count
-
