@@ -149,7 +149,7 @@ def marktime(url):
     token = url.split('#')[0].split('?')[1].split('=')[1]
     v = params['video'] if params.get('video') else params['episode']
     s = params['season'] if params.get('season') else 0
-    response = HTTP.Request("http://api.service-kp.com/v1/watching/marktime?access_token=%s&id=%s&video=%s&season=%s&time=%s" % (token, item['id'], v, s, video['duration']), cacheTime=0)
+    response = HTTP.Request("https://api.service-kp.com/v1/watching/marktime?access_token=%s&id=%s&video=%s&season=%s&time=%s" % (token, item['id'], v, s, video['duration']), cacheTime=0)
     Log.Exception("DATA: %s" % response)
 
 

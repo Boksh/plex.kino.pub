@@ -11,7 +11,7 @@ import sys
 sys.setdefaultencoding("utf-8")
 
 VERSION = "1.1.4"
-VERSION_CHECK = "http://api.service-kp.com/plugins/plex/last"
+VERSION_CHECK = "https://api.service-kp.com/plugins/plex/last"
 
 ICON                = 'icon-default.png'
 ART                 = 'art-default.jpg'
@@ -39,7 +39,7 @@ def update_device_info(force=False):
             title = "PlexMediaServer"
             version = ""
             try:
-                node = XML.ObjectFromURL("http://%s:%s/" % (Network.Address, 32400));
+                node = XML.ObjectFromURL("https://%s:%s/" % (Network.Address, 32400));
                 title = node.attrib['friendlyName']
                 version = "(%s)" % node.attrib['version']
             except:
